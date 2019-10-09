@@ -1,0 +1,67 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: {{ .Chart.Name }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
+    heritage: {{ .Release.Service }}
+  name: {{ .Chart.Name }}
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+      name: {{ .Chart.Name }}
+    spec:
+      nodeSelector:
+        cloud.google.com/gke-nodepool: {{ .Values.deployment.nodePool }}
+      containers:
+        - name: {{ .Chart.Name }}
+          imagePullPolicy: Always
+          image: "{{ .Values.image.repo }}:{{ .Values.image.tag }}"
+          env:
+            - name: JAEGER_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: JAEGER_AGENT_PORT
+              value: "6831"
+            - name: SMCA
+              valueFrom:
+                configMapKeyRef:
+                  key: smca
+                  name: {{ .Chart.Name }}
+            - name: STREAM_MANAGER_CONTRACT_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Chart.Name }}
+                  key: streamManagerContractAddr
+            - name: RPC_NODE_HTTP_ADDR
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Chart.Name }}
+                  key: rpcNodeHttpAddr
+            - name: KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Chart.Name }}
+                  key: key
+            - name: SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Chart.Name }}
+                  key: secret
+            - name: RPC_ADDR
+              value: 0.0.0.0:{{ .Values.service.grpcPort }}
+            - name: PROXY_PORT
+              value: 0.0.0.0:{{ .Values.service.proxyPort }}
+          resources: {}
