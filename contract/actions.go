@@ -6,28 +6,34 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/opentracing/opentracing-go"
 	"github.com/videocoin/cloud-pkg/stream"
 )
 
-func (c *ContractClient) ValidateProof(ctx context.Context, streamContractAddress string, profileId, inputChunkId int64) error {
+func (c *ContractClient) ValidateProof(
+	ctx context.Context,
+	streamContractAddress string,
+	profileID,
+	chunkID *big.Int,
+) (*ethtypes.Transaction, error) {
 	span, _ := opentracing.StartSpanFromContext(ctx, "ValidateProof")
 	defer span.Finish()
 
 	stream, err := stream.NewStream(common.HexToAddress(streamContractAddress), c.client)
 	if err != nil {
-		return fmt.Errorf("failed to create new stream: %s", err.Error())
+		return nil, fmt.Errorf("failed to create new stream: %s", err.Error())
 	}
 
-	tx, err := stream.ValidateProof(c.transactOpts, big.NewInt(profileId), big.NewInt(inputChunkId))
+	tx, err := stream.ValidateProof(c.transactOpts, profileID, chunkID)
 	if err != nil {
-		return fmt.Errorf("failed to validate proof: %s", err.Error())
+		return nil, fmt.Errorf("failed to validate proof: %s", err.Error())
 	}
 
 	err = c.waitMinedAndCheck(tx)
 	if err != nil {
-		return fmt.Errorf("failed to wait mined: %s", err.Error())
+		return nil, fmt.Errorf("failed to wait mined: %s", err.Error())
 	}
 
-	return nil
+	return tx, nil
 }

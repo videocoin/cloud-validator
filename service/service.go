@@ -1,20 +1,24 @@
 package service
 
+import (
+	"github.com/videocoin/cloud-validator/contract"
+)
+
 type Service struct {
 	cfg *Config
 	rpc *RpcServer
 }
 
 func NewService(cfg *Config) (*Service, error) {
-	contractOpts := &ContractClientOpts{
+	contractOpts := &contract.ContractClientOpts{
 		RPCNodeHTTPAddr: cfg.RPCNodeHTTPAddr,
-		ContractAddr:    cfg.ContractAddr,
+		ContractAddr:    cfg.StreamManagerContractAddr,
 		Key:             cfg.Key,
 		Secret:          cfg.Secret,
 		Logger:          cfg.Logger.WithField("system", "contract"),
 	}
 
-	contract, err := NewContractClient(contractOpts)
+	contract, err := contract.NewContractClient(contractOpts)
 	if err != nil {
 		return nil, err
 	}

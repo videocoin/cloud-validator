@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"math/big"
 	"net"
 
 	"github.com/gogo/protobuf/types"
@@ -66,17 +67,32 @@ func (s *RpcServer) Health(ctx context.Context, req *protoempty.Empty) (*rpc.Hea
 
 func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequest) (*types.Empty, error) {
 	span := opentracing.SpanFromContext(ctx)
-
 	span.SetTag("stream_contract_address", req.StreamContractAddress)
 	span.SetTag("stream_contract_id", req.StreamContractId)
-	span.SetTag("profile_id", req.ProfileId)
-	span.SetTag("input_id", req.InputId)
-	span.SetTag("output_id", req.OutputId)
 
-	err := s.contract.ValidateProof(ctx, req.StreamContractAddress, req.ProfileId, req.InputId)
+	profileID := new(big.Int)
+	profileID.SetBytes(req.ProfileId)
+
+	inputChunkID := new(big.Int)
+	inputChunkID.SetBytes(req.InputChunkId)
+
+	outputChunkID := new(big.Int)
+	outputChunkID.SetBytes(req.OutputChunkId)
+
+	span.SetTag("profile_id", profileID.String())
+	span.SetTag("input_chunk_id", inputChunkID.String())
+	span.SetTag("output_chunk_id", outputChunkID.String())
+
+	tx, err := s.contract.ValidateProof(ctx, req.StreamContractAddress, profileID, outputChunkID)
 	if err != nil {
-		s.logger.Errorf("failed to validate proof: %s", err.Error())
+		if tx != nil {
+			s.logger.Debugf("tx %s\n", tx.Hash().String())
+		}
+		s.logger.Errorf("failed to validate proof: %+v", err.Error())
+		return nil, rpc.ErrRpcInternal
 	}
+
+	s.logger.Debugf("tx %s\n", tx.Hash().String())
 
 	return new(types.Empty), err
 

@@ -11,12 +11,11 @@ type Config struct {
 	Name    string `envconfig:"-"`
 	Version string `envconfig:"-"`
 
-	RPCAddr string `required:"true" envconfig:"RPC_ADDR" default:"validator:50055"`
-
-	RPCNodeHTTPAddr           string `default:"" envconfig:"RPC_NODE_HTTP_ADDR"`
-	StreamManagerContractAddr string `default:"" envconfig:"STREAM_MANAGER_CONTRACT_ADDR"`
-	Key                       string `required:"true" envconfig:"KEY"`
-	Secret                    string `required:"true" envconfig:"SECRET"`
+	RPCAddr                   string `required:"true" envconfig:"RPC_ADDR" default:"127.0.0.1:5020"`
+	RPCNodeHTTPAddr           string `required:"true" envconfig:"RPC_NODE_HTTP_ADDR"`
+	StreamManagerContractAddr string `required:"true" envconfig:"STREAM_MANAGER_CONTRACT_ADDR"`
+	Key                       string `required:"true" envconfig:"VALIDATOR_KEY"`
+	Secret                    string `required:"true" envconfig:"VALIDATOR_SECRET"`
 
 	Logger *logrus.Entry `envconfig:"-"`
 }
