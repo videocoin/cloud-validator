@@ -1,33 +1,28 @@
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
+  name: {{ .Release.Name }}
   labels:
-    app: {{ .Chart.Name }}
+    app: {{ .Release.Name }}
     chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
     heritage: {{ .Release.Service }}
-  name: {{ .Chart.Name }}
-  namespace: default
 spec:
-  selector:
-    matchLabels:
-      app: {{ .Chart.Name }}
+  replicas: {{ .Values.replicasCount }}
   strategy:
     rollingUpdate:
-      maxSurge: 2
-      maxUnavailable: 0
-    type: RollingUpdate
+      maxUnavailable: {{ .Values.maxUnavailableCount }}
   template:
     metadata:
+      name: {{ .Release.Name }}
       labels:
-        app: {{ .Chart.Name }}
-      name: {{ .Chart.Name }}
+        app: {{ .Release.Name }}
     spec:
-      nodeSelector:
-        cloud.google.com/gke-nodepool: {{ .Values.deployment.nodePool }}
       containers:
-        - name: {{ .Chart.Name }}
-          imagePullPolicy: Always
-          image: "{{ .Values.image.repo }}:{{ .Values.image.tag }}"
+        - name: {{ .Release.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.internalRpcPort }}
           env:
             - name: JAEGER_AGENT_HOST
               valueFrom:
@@ -35,11 +30,8 @@ spec:
                   fieldPath: status.hostIP
             - name: JAEGER_AGENT_PORT
               value: "6831"
-            - name: SMCA
-              valueFrom:
-                configMapKeyRef:
-                  key: smca
-                  name: {{ .Chart.Name }}
+            - name: RPC_ADDR
+              value: 0.0.0.0:{{ .Values.service.internalRpcPort }}
             - name: STREAM_MANAGER_CONTRACT_ADDR
               valueFrom:
                 configMapKeyRef:
@@ -50,18 +42,24 @@ spec:
                 secretKeyRef:
                   name: {{ .Chart.Name }}
                   key: rpcNodeHttpAddr
-            - name: KEY
+            - name: VALIDATOR_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ .Chart.Name }}
                   key: key
-            - name: SECRET
+            - name: VALIDATOR_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ .Chart.Name }}
                   key: secret
-            - name: RPC_ADDR
-              value: 0.0.0.0:{{ .Values.service.grpcPort }}
-            - name: PROXY_PORT
-              value: 0.0.0.0:{{ .Values.service.proxyPort }}
-          resources: {}
+          {{- if .Values.resources }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+          {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}
+        - name: secrets
+          secret:
+            secretName: {{ .Release.Name }}

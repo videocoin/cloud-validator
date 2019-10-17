@@ -12,13 +12,9 @@ spec:
   clusterIP: {{ .Values.service.clusterIP | default "None" | quote }}
 {{ end }}
   ports:
-  - name: grpc
-    protocol: TCP
-    port: {{ .Values.service.grpcPort }}
-    targetPort: {{ .Values.service.grpcPort }}
-  - name: proxy
-    protocol: TCP
-    port: {{ .Values.service.proxyPort }}
-    targetPort: {{ .Values.service.proxyPort }}
+    - port: {{ .Values.service.externalRpcPort }}
+      targetPort: {{ .Values.service.internalRpcPort }}
+      protocol: TCP
+      name: grpc
   selector:
     app: {{ .Chart.Name }}
