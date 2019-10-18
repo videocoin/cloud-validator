@@ -83,17 +83,19 @@ func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 	span.SetTag("input_chunk_id", inputChunkID.String())
 	span.SetTag("output_chunk_id", outputChunkID.String())
 
-	tx, err := s.contract.ValidateProof(ctx, req.StreamContractAddress, profileID, outputChunkID)
-	if err != nil {
-		if tx != nil {
-			s.logger.Debugf("tx %s\n", tx.Hash().String())
+	go func() {
+		tx, err := s.contract.ValidateProof(ctx, req.StreamContractAddress, profileID, outputChunkID)
+		if err != nil {
+			if tx != nil {
+				s.logger.Debugf("tx %s\n", tx.Hash().String())
+			}
+			s.logger.Errorf("failed to validate proof: %+v", err.Error())
+			return
 		}
-		s.logger.Errorf("failed to validate proof: %+v", err.Error())
-		return nil, rpc.ErrRpcInternal
-	}
 
-	s.logger.Debugf("tx %s\n", tx.Hash().String())
+		s.logger.Debugf("tx %s\n", tx.Hash().String())
+	}()
 
-	return new(types.Empty), err
+	return new(types.Empty), nil
 
 }
