@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"math"
 	"math/big"
+	"math/rand"
 	"net"
 
 	"github.com/gogo/protobuf/types"
@@ -18,9 +20,10 @@ import (
 )
 
 type RpcServerOptions struct {
-	Addr     string
-	Contract *contract.ContractClient
-	Logger   *logrus.Entry
+	Addr      string
+	Contract  *contract.ContractClient
+	Threshold int
+	Logger    *logrus.Entry
 }
 
 type RpcServer struct {
@@ -28,7 +31,8 @@ type RpcServer struct {
 	listen net.Listener
 	addr   string
 
-	contract *contract.ContractClient
+	contract  *contract.ContractClient
+	threshold int
 
 	logger *logrus.Entry
 }
@@ -43,11 +47,12 @@ func NewRpcServer(opts *RpcServerOptions) (*RpcServer, error) {
 	}
 
 	rpcServer := &RpcServer{
-		addr:     opts.Addr,
-		contract: opts.Contract,
-		grpc:     grpcServer,
-		listen:   listen,
-		logger:   opts.Logger,
+		addr:      opts.Addr,
+		contract:  opts.Contract,
+		threshold: opts.Threshold,
+		grpc:      grpcServer,
+		listen:    listen,
+		logger:    opts.Logger,
 	}
 
 	v1.RegisterValidatorServiceServer(grpcServer, rpcServer)
@@ -68,32 +73,85 @@ func (s *RpcServer) Health(ctx context.Context, req *protoempty.Empty) (*rpc.Hea
 func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequest) (*types.Empty, error) {
 	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("stream_contract_address", req.StreamContractAddress)
-	span.SetTag("stream_contract_id", req.StreamContractId)
 
 	profileID := new(big.Int)
 	profileID.SetBytes(req.ProfileId)
-
-	inputChunkID := new(big.Int)
-	inputChunkID.SetBytes(req.InputChunkId)
 
 	outputChunkID := new(big.Int)
 	outputChunkID.SetBytes(req.OutputChunkId)
 
 	span.SetTag("profile_id", profileID.String())
-	span.SetTag("input_chunk_id", inputChunkID.String())
 	span.SetTag("output_chunk_id", outputChunkID.String())
 
+	span.SetTag("input_chunk_url", string(req.InputChunkUrl))
+	span.SetTag("output_chunk_url", string(req.OutputChunkUrl))
+
 	go func() {
-		tx, err := s.contract.ValidateProof(ctx, req.StreamContractAddress, profileID, outputChunkID)
-		if err != nil {
-			if tx != nil {
-				s.logger.Debugf("tx %s\n", tx.Hash().String())
-			}
-			s.logger.Errorf("failed to validate proof: %+v", err.Error())
+		logger := s.logger.WithFields(
+			logrus.Fields{"original": req.InputChunkUrl, "transcoded": req.OutputChunkUrl})
+
+		inDuration, err := getDuration(req.InputChunkUrl)
+		if err != nil || inDuration == 0 {
+			logger.Error("failed to get duration")
 			return
 		}
 
-		s.logger.Debugf("tx %s\n", tx.Hash().String())
+		logger.Debugf("original duration is %f\n", inDuration)
+
+		outDuration, err := getDuration(req.OutputChunkUrl)
+		if err != nil || outDuration == 0 {
+			logger.Error("failed to get duration")
+			return
+		}
+
+		logger.Debugf("transcoded duration is %f\n", outDuration)
+
+		duration := math.Min(inDuration, outDuration)
+		seekTo := rand.Float64() * duration
+
+		logger.Debugf("duration is %f, extracting at time %f\n", duration, seekTo)
+
+		hashA, err := getHash(req.InputChunkUrl, seekTo)
+		if err != nil {
+			logger.WithError(err).Error("failed to get hash")
+			return
+		}
+
+		hashB, err := getHash(req.OutputChunkUrl, seekTo)
+		if err != nil {
+			logger.WithError(err).Error("failed to get hash")
+			return
+		}
+
+		distance, err := hashA.Distance(hashB)
+		if err != nil {
+			logger.Errorf("distance is %d\n", distance)
+		}
+
+		// [0,32], 0 - same, 32 - completely different
+		if distance <= s.threshold {
+			tx, err := s.contract.ValidateProof(ctx, req.StreamContractAddress, profileID, outputChunkID)
+			if err != nil {
+				if tx != nil {
+					logger.Debugf("tx %s\n", tx.Hash().String())
+				}
+				logger.WithError(err).Error("failed to validate proof")
+				return
+			}
+
+			logger.Debugf("tx %s\n", tx.Hash().String())
+		} else {
+			tx, err := s.contract.ScrapProof(ctx, req.StreamContractAddress, profileID, outputChunkID)
+			if err != nil {
+				if tx != nil {
+					logger.Debugf("tx %s\n", tx.Hash().String())
+				}
+				logger.WithError(err).Error("failed to scrap proof")
+				return
+			}
+
+			logger.Debugf("tx %s\n", tx.Hash().String())
+		}
 	}()
 
 	return new(types.Empty), nil
