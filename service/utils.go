@@ -50,12 +50,7 @@ func extractFrame(filepath string, atTime float64) (string, error) {
 	return output, nil
 }
 
-func getHash(filepath string, seekTo float64) (*goimagehash.ImageHash, error) {
-	framepath, err := extractFrame(filepath, seekTo)
-	if err != nil {
-		return nil, err
-	}
-
+func getHash(framepath string) (*goimagehash.ImageHash, error) {
 	img, err := os.Open(framepath)
 	if err != nil {
 		return nil, err

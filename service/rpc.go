@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"math/rand"
 	"net"
+	"os"
 
 	"github.com/gogo/protobuf/types"
 	protoempty "github.com/gogo/protobuf/types"
@@ -100,7 +101,7 @@ func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 
 		outDuration, err := getDuration(req.OutputChunkUrl)
 		if err != nil || outDuration == 0 {
-			logger.Error("failed to get duration")
+			logger.WithError(err).Error("failed to get duration")
 			return
 		}
 
@@ -111,22 +112,49 @@ func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 
 		logger.Debugf("duration is %f, extracting at time %f\n", duration, seekTo)
 
-		hashA, err := getHash(req.InputChunkUrl, seekTo)
+		inFrame, err := extractFrame(req.InputChunkUrl, seekTo)
+		if err != nil {
+			logger.WithError(err).Error("failed to extract frame")
+			return
+		}
+		defer func() {
+			err := os.Remove(inFrame)
+			if err == nil {
+				logger.WithError(err).Error("failed to remove frame")
+			}
+		}()
+
+		inHash, err := getHash(inFrame)
 		if err != nil {
 			logger.WithError(err).Error("failed to get hash")
 			return
 		}
 
-		hashB, err := getHash(req.OutputChunkUrl, seekTo)
+		outFrame, err := extractFrame(req.OutputChunkUrl, seekTo)
+		if err != nil {
+			logger.WithError(err).Error("failed to extract frame")
+			return
+		}
+		defer func() {
+			err := os.Remove(outFrame)
+			if err == nil {
+				logger.WithError(err).Error("failed to remove frame")
+			}
+		}()
+
+		outHash, err := getHash(outFrame)
 		if err != nil {
 			logger.WithError(err).Error("failed to get hash")
 			return
 		}
 
-		distance, err := hashA.Distance(hashB)
+		distance, err := inHash.Distance(outHash)
 		if err != nil {
-			logger.Errorf("distance is %d\n", distance)
+			logger.WithError(err).Error("failed to get distance")
+			return
 		}
+
+		logger.Infof("distance is %d\n", distance)
 
 		// [0,32], 0 - same, 32 - completely different
 		if distance <= s.threshold {
