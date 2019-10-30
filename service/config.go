@@ -16,7 +16,9 @@ type Config struct {
 	StreamManagerContractAddr string `required:"true" envconfig:"STREAM_MANAGER_CONTRACT_ADDR"`
 	Key                       string `required:"true" envconfig:"VALIDATOR_KEY"`
 	Secret                    string `required:"true" envconfig:"VALIDATOR_SECRET"`
-	Threshold                 int    `required:"true" envconfig:"THRESHOLD" default:10`
+	Threshold                 int    `required:"true" envconfig:"THRESHOLD" default:"10"`
+	BaseInputURL              string `required:"true" envconfig:"BASE_INPUT_URL"`
+	BaseOutputURL             string `required:"true" envconfig:"BASE_OUTPUT_URL"`
 
 	Logger *logrus.Entry `envconfig:"-"`
 }

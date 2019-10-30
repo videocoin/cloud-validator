@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"math/big"
 	"math/rand"
@@ -21,10 +22,12 @@ import (
 )
 
 type RpcServerOptions struct {
-	Addr      string
-	Contract  *contract.ContractClient
-	Threshold int
-	Logger    *logrus.Entry
+	Addr          string
+	Contract      *contract.ContractClient
+	Threshold     int
+	Logger        *logrus.Entry
+	BaseInputURL  string
+	BaseOutputURL string
 }
 
 type RpcServer struct {
@@ -36,6 +39,9 @@ type RpcServer struct {
 	threshold int
 
 	logger *logrus.Entry
+
+	baseInputURL  string
+	baseOutputURL string
 }
 
 func NewRpcServer(opts *RpcServerOptions) (*RpcServer, error) {
@@ -48,12 +54,14 @@ func NewRpcServer(opts *RpcServerOptions) (*RpcServer, error) {
 	}
 
 	rpcServer := &RpcServer{
-		addr:      opts.Addr,
-		contract:  opts.Contract,
-		threshold: opts.Threshold,
-		grpc:      grpcServer,
-		listen:    listen,
-		logger:    opts.Logger,
+		addr:          opts.Addr,
+		contract:      opts.Contract,
+		threshold:     opts.Threshold,
+		grpc:          grpcServer,
+		listen:        listen,
+		logger:        opts.Logger,
+		baseInputURL:  opts.BaseInputURL,
+		baseOutputURL: opts.BaseOutputURL,
 	}
 
 	v1.RegisterValidatorServiceServer(grpcServer, rpcServer)
@@ -84,14 +92,17 @@ func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 	span.SetTag("profile_id", profileID.String())
 	span.SetTag("output_chunk_id", outputChunkID.String())
 
-	span.SetTag("input_chunk_url", string(req.InputChunkUrl))
-	span.SetTag("output_chunk_url", string(req.OutputChunkUrl))
+	inputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseInputURL, req.StreamId, outputChunkID.Int64()-1)
+	outputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseOutputURL, req.StreamId, outputChunkID.Int64())
 
 	go func() {
 		logger := s.logger.WithFields(
-			logrus.Fields{"original": req.InputChunkUrl, "transcoded": req.OutputChunkUrl})
+			logrus.Fields{
+				"original":   inputChunkURL,
+				"transcoded": outputChunkURL,
+			})
 
-		inDuration, err := getDuration(req.InputChunkUrl)
+		inDuration, err := getDuration(inputChunkURL)
 		if err != nil || inDuration == 0 {
 			logger.Error("failed to get duration")
 			return
@@ -99,7 +110,7 @@ func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 
 		logger.Debugf("original duration is %f\n", inDuration)
 
-		outDuration, err := getDuration(req.OutputChunkUrl)
+		outDuration, err := getDuration(outputChunkURL)
 		if err != nil || outDuration == 0 {
 			logger.WithError(err).Error("failed to get duration")
 			return
@@ -112,7 +123,7 @@ func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 
 		logger.Debugf("duration is %f, extracting at time %f\n", duration, seekTo)
 
-		inFrame, err := extractFrame(req.InputChunkUrl, seekTo)
+		inFrame, err := extractFrame(inputChunkURL, seekTo)
 		if err != nil {
 			logger.WithError(err).Error("failed to extract frame")
 			return
@@ -130,7 +141,7 @@ func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 			return
 		}
 
-		outFrame, err := extractFrame(req.OutputChunkUrl, seekTo)
+		outFrame, err := extractFrame(outputChunkURL, seekTo)
 		if err != nil {
 			logger.WithError(err).Error("failed to extract frame")
 			return
@@ -183,5 +194,4 @@ func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 	}()
 
 	return new(types.Empty), nil
-
 }

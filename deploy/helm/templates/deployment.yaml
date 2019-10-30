@@ -32,11 +32,23 @@ spec:
               value: "6831"
             - name: RPC_ADDR
               value: 0.0.0.0:{{ .Values.service.internalRpcPort }}
+            - name: LOGLEVEL
+              value: debug
             - name: STREAM_MANAGER_CONTRACT_ADDR
               valueFrom:
                 configMapKeyRef:
                   name: {{ .Chart.Name }}
                   key: streamManagerContractAddr
+            - name: BASE_INPUT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Chart.Name }}
+                  key: baseInputUrl
+            - name: BASE_OUTPUT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Chart.Name }}
+                  key: baseOutputUrl
             - name: RPC_NODE_HTTP_ADDR
               valueFrom:
                 secretKeyRef:
