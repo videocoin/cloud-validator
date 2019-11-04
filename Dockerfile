@@ -6,6 +6,7 @@ WORKDIR /go/src/github.com/videocoin/cloud-validator
 
 ADD ./ ./
 
+RUN apt-get update && apt-get -y install libmediainfo-dev
 RUN make build
 
 FROM bitnami/minideb:jessie
@@ -13,7 +14,7 @@ RUN echo 'deb http://www.deb-multimedia.org jessie main non-free' >> /etc/apt/so
 RUN echo 'deb-src http://www.deb-multimedia.org jessie main non-free' >> /etc/apt/sources.list
 RUN apt-get update && \
     apt-get -y --force-yes install deb-multimedia-keyring && \
-    apt-get -y --force-yes install ffmpeg
+    apt-get -y --force-yes install mediainfo libmediainfo-dev ffmpeg
 
 COPY --from=builder /go/src/github.com/videocoin/cloud-validator/bin/validator ./
 RUN install_packages curl && GRPC_HEALTH_PROBE_VERSION=v0.3.0 && \
