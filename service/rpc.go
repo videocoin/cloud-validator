@@ -8,12 +8,14 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"time"
 
 	"github.com/gogo/protobuf/types"
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	v1 "github.com/videocoin/cloud-api/validator/v1"
 	"github.com/videocoin/cloud-pkg/grpcutil"
+	"github.com/videocoin/cloud-pkg/retry"
 	"github.com/videocoin/cloud-validator/contract"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -148,6 +150,14 @@ func (s *RpcServer) validateProof(inputChunkURL, outputChunkURL string) (bool, e
 			"original":   inputChunkURL,
 			"transcoded": outputChunkURL,
 		})
+
+	err := retry.RetryWithAttempts(10, time.Second*5, func() error {
+		logger.Infof("checking output chunk url %s", outputChunkURL)
+		return checkSource(outputChunkURL)
+	})
+	if err != nil {
+		return false, err
+	}
 
 	inDuration, err := getDuration(inputChunkURL)
 	if err != nil || inDuration == 0 {

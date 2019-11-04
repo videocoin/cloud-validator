@@ -1,12 +1,15 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"image/png"
 	"math/rand"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/corona10/goimagehash"
@@ -62,4 +65,30 @@ func getHash(framepath string) (*goimagehash.ImageHash, error) {
 	}
 
 	return goimagehash.PerceptionHash(data)
+}
+
+func checkSource(url string) error {
+	if strings.HasPrefix(url, "file://") || strings.HasPrefix(url, "/") {
+		fp := strings.TrimPrefix(url, "file://")
+		if _, err := os.Stat(fp); os.IsNotExist(err) {
+			return err
+		}
+	} else if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+		hc := http.Client{
+			Timeout: time.Duration(5 * time.Second),
+		}
+		resp, err := hc.Get(url)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		if resp != nil && resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("failed to get %s, return status %s", url, resp.Status)
+		}
+	} else {
+		return errors.New("unknown source type")
+	}
+
+	return nil
 }

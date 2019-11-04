@@ -167,6 +167,7 @@ github.com/videocoin/cloud-pkg/bcops
 github.com/videocoin/cloud-pkg/stream
 github.com/videocoin/cloud-pkg/streamManager
 github.com/videocoin/cloud-pkg/grpcutil
+github.com/videocoin/cloud-pkg/retry
 github.com/videocoin/cloud-pkg/mqmux
 # golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
 golang.org/x/crypto/pbkdf2
