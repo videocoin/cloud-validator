@@ -16,9 +16,9 @@ import (
 	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-validator/contract"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
 )
 
 type RpcServerOptions struct {
@@ -93,79 +93,20 @@ func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 	outputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseOutputURL, req.StreamId, outputChunkID.Int64())
 
 	go func() {
+
 		logger := s.logger.WithFields(
 			logrus.Fields{
 				"original":   inputChunkURL,
 				"transcoded": outputChunkURL,
 			})
 
-		inDuration, err := getDuration(inputChunkURL)
-		if err != nil || inDuration == 0 {
-			logger.Error("failed to get duration")
-			return
-		}
-
-		logger.Debugf("original duration is %f\n", inDuration)
-
-		outDuration, err := getDuration(outputChunkURL)
-		if err != nil || outDuration == 0 {
-			logger.WithError(err).Error("failed to get duration")
-			return
-		}
-
-		logger.Debugf("transcoded duration is %f\n", outDuration)
-
-		duration := math.Min(inDuration, outDuration)
-		seekTo := rand.Float64() * duration
-
-		logger.Debugf("duration is %f, extracting at time %f\n", duration, seekTo)
-
-		inFrame, err := extractFrame(inputChunkURL, seekTo)
+		isValid, err := s.validateProof(inputChunkURL, outputChunkURL)
 		if err != nil {
-			logger.WithError(err).Error("failed to extract frame")
-			return
-		}
-		defer func() {
-			err := os.Remove(inFrame)
-			if err == nil {
-				logger.WithError(err).Error("failed to remove frame")
-			}
-		}()
-
-		inHash, err := getHash(inFrame)
-		if err != nil {
-			logger.WithError(err).Error("failed to get hash")
+			logger.Error(err)
 			return
 		}
 
-		outFrame, err := extractFrame(outputChunkURL, seekTo)
-		if err != nil {
-			logger.WithError(err).Error("failed to extract frame")
-			return
-		}
-		defer func() {
-			err := os.Remove(outFrame)
-			if err == nil {
-				logger.WithError(err).Error("failed to remove frame")
-			}
-		}()
-
-		outHash, err := getHash(outFrame)
-		if err != nil {
-			logger.WithError(err).Error("failed to get hash")
-			return
-		}
-
-		distance, err := inHash.Distance(outHash)
-		if err != nil {
-			logger.WithError(err).Error("failed to get distance")
-			return
-		}
-
-		logger.Infof("distance is %d\n", distance)
-
-		// [0,32], 0 - same, 32 - completely different
-		if distance <= s.threshold {
+		if isValid {
 			tx, err := s.contract.ValidateProof(ctx, req.StreamContractAddress, profileID, outputChunkID)
 			if err != nil {
 				if tx != nil {
@@ -188,7 +129,81 @@ func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 
 			logger.Debugf("tx %s\n", tx.Hash().String())
 		}
+
 	}()
 
 	return new(types.Empty), nil
+}
+
+func (s *RpcServer) validateProof(inputChunkURL, outputChunkURL string) (bool, error) {
+	logger := s.logger.WithFields(
+		logrus.Fields{
+			"original":   inputChunkURL,
+			"transcoded": outputChunkURL,
+		})
+
+	inDuration, err := getDuration(inputChunkURL)
+	if err != nil || inDuration == 0 {
+		return false, fmt.Errorf("failed to get input chunk duration: %s", err)
+	}
+
+	logger.Debugf("original duration is %f\n", inDuration)
+
+	outDuration, err := getDuration(outputChunkURL)
+	if err != nil || outDuration == 0 {
+		return false, fmt.Errorf("failed to get output chunk duration: %s", err)
+	}
+
+	logger.Debugf("transcoded duration is %f\n", outDuration)
+
+	duration := math.Min(inDuration, outDuration)
+	seekTo := rand.Float64() * duration
+
+	logger.Debugf("duration is %f, extracting at time %f\n", duration, seekTo)
+
+	inFrame, err := extractFrame(inputChunkURL, seekTo)
+	if err != nil {
+		return false, fmt.Errorf("failed to extract input chunk frame: %s", err)
+	}
+	defer func() {
+		err := os.Remove(inFrame)
+		if err == nil {
+			logger.WithError(err).Error("failed to remove input chunk frame")
+		}
+	}()
+
+	inHash, err := getHash(inFrame)
+	if err != nil {
+		return false, fmt.Errorf("failed to get input chunk hash: %s", err)
+	}
+
+	outFrame, err := extractFrame(outputChunkURL, seekTo)
+	if err != nil {
+		return false, fmt.Errorf("failed to extract output chunk frame: %s", err)
+	}
+	defer func() {
+		err := os.Remove(outFrame)
+		if err == nil {
+			logger.WithError(err).Error("failed to remove output chunk frame")
+		}
+	}()
+
+	outHash, err := getHash(outFrame)
+	if err != nil {
+		return false, fmt.Errorf("failed to get output chunk hash: %s", err)
+	}
+
+	distance, err := inHash.Distance(outHash)
+	if err != nil {
+		return false, fmt.Errorf("failed to calc distance: %s", err)
+	}
+
+	logger.Infof("distance is %d\n", distance)
+
+	// [0,32], 0 - same, 32 - completely different
+	if distance <= s.threshold {
+		return true, nil
+	}
+
+	return false, nil
 }
