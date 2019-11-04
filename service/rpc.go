@@ -184,7 +184,7 @@ func (s *RpcServer) validateProof(inputChunkURL, outputChunkURL string) (bool, e
 	}
 	defer func() {
 		err := os.Remove(inFrame)
-		if err == nil {
+		if err != nil {
 			logger.WithError(err).Error("failed to remove input chunk frame")
 		}
 	}()
@@ -200,7 +200,7 @@ func (s *RpcServer) validateProof(inputChunkURL, outputChunkURL string) (bool, e
 	}
 	defer func() {
 		err := os.Remove(outFrame)
-		if err == nil {
+		if err != nil {
 			logger.WithError(err).Error("failed to remove output chunk frame")
 		}
 	}()
