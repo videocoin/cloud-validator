@@ -103,6 +103,13 @@ func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 		isValid, err := s.validateProof(inputChunkURL, outputChunkURL)
 		if err != nil {
 			logger.Error(err)
+
+			_, err := s.contract.ValidateProof(ctx, req.StreamContractAddress, profileID, outputChunkID)
+			if err != nil {
+				logger.WithError(err).Error("failed to validate proof")
+				return
+			}
+
 			return
 		}
 
