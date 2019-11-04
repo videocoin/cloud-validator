@@ -26,7 +26,7 @@ func getDuration(filepath string) (float64, error) {
 	}
 	defer info.Close()
 
-	field, err := info.Get("Duration", 0, mediainfo.General)
+	field, err := info.Get("Duration", 0, mediainfo.Video)
 	if err != nil {
 		return 0, err
 	}
