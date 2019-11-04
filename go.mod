@@ -6,7 +6,7 @@ require (
 	github.com/cespare/cp v1.1.1 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/corona10/goimagehash v1.0.1
-	github.com/dwbuiten/go-mediainfo v0.0.0-20150630175133-91f51f40c56a
+	github.com/dwbuiten/go-mediainfo v0.0.0-20150630175133-91f51f40c56a // indirect
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/ethereum/go-ethereum v1.8.27
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5 // indirect
@@ -21,6 +21,7 @@ require (
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/sirupsen/logrus v1.4.2
 	github.com/uber-go/atomic v1.4.0 // indirect
+	github.com/vansante/go-ffprobe v1.1.0
 	github.com/videocoin/cloud-api v0.2.14
 	github.com/videocoin/cloud-pkg v0.0.6
 	go.uber.org/atomic v1.4.0 // indirect

@@ -26,8 +26,6 @@ deps:
 	# https://github.com/ethereum/go-ethereum/issues/2738
 	cp -r $(GOPATH)/src/github.com/ethereum/go-ethereum/crypto/secp256k1/libsecp256k1 \
 	vendor/github.com/ethereum/go-ethereum/crypto/secp256k1/
-	cp -r $(GOPATH)/src/github.com/dwbuiten/go-mediainfo/mediainfo/c \
-	vendor/github.com/dwbuiten/go-mediainfo/mediainfo/c	
 
 docker-build:
 	docker build -t gcr.io/${GCP_PROJECT}/${NAME}:${VERSION} -f Dockerfile .

@@ -15,8 +15,6 @@ github.com/corona10/goimagehash/etcs
 github.com/corona10/goimagehash/transforms
 # github.com/deckarep/golang-set v1.7.1
 github.com/deckarep/golang-set
-# github.com/dwbuiten/go-mediainfo v0.0.0-20150630175133-91f51f40c56a
-github.com/dwbuiten/go-mediainfo/mediainfo
 # github.com/ethereum/go-ethereum v1.8.27
 github.com/ethereum/go-ethereum/accounts/abi/bind
 github.com/ethereum/go-ethereum/accounts/keystore
@@ -157,6 +155,8 @@ github.com/uber/jaeger-client-go/thrift-gen/agent
 github.com/uber/jaeger-client-go/thrift-gen/baggage
 # github.com/uber/jaeger-lib v2.0.0+incompatible
 github.com/uber/jaeger-lib/metrics
+# github.com/vansante/go-ffprobe v1.1.0
+github.com/vansante/go-ffprobe
 # github.com/videocoin/cloud-api v0.2.14 => ../cloud-api
 github.com/videocoin/cloud-api/validator/v1
 github.com/videocoin/cloud-api/rpc

@@ -8,35 +8,25 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/corona10/goimagehash"
-	"github.com/dwbuiten/go-mediainfo/mediainfo"
 	"github.com/google/uuid"
+	ffprobe "github.com/vansante/go-ffprobe"
 )
 
 func init() {
-	mediainfo.Init()
 	rand.Seed(time.Now().UnixNano())
 }
 
 func getDuration(filepath string) (float64, error) {
-	info, err := mediainfo.Open(filepath)
-	if err != nil {
-		return 0, err
-	}
-	defer info.Close()
-
-	field, err := info.Get("Duration", 0, mediainfo.Video)
+	data, err := ffprobe.GetProbeData(filepath, 5000*time.Millisecond)
 	if err != nil {
 		return 0, err
 	}
 
-	duration, err := strconv.ParseFloat(field, 64)
-
-	return duration / 1000, err
+	return data.Format.DurationSeconds, nil
 }
 
 func extractFrame(filepath string, atTime float64) (string, error) {
