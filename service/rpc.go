@@ -119,24 +119,24 @@ func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 			tx, err := s.contract.ValidateProof(ctx, req.StreamContractAddress, profileID, outputChunkID)
 			if err != nil {
 				if tx != nil {
-					logger.Debugf("tx %s\n", tx.Hash().String())
+					logger.Debugf("tx %s", tx.Hash().String())
 				}
 				logger.WithError(err).Error("failed to validate proof")
 				return
 			}
 
-			logger.Debugf("tx %s\n", tx.Hash().String())
+			logger.Debugf("tx %s", tx.Hash().String())
 		} else {
 			tx, err := s.contract.ScrapProof(ctx, req.StreamContractAddress, profileID, outputChunkID)
 			if err != nil {
 				if tx != nil {
-					logger.Debugf("tx %s\n", tx.Hash().String())
+					logger.Debugf("tx %s", tx.Hash().String())
 				}
 				logger.WithError(err).Error("failed to scrap proof")
 				return
 			}
 
-			logger.Debugf("tx %s\n", tx.Hash().String())
+			logger.Debugf("tx %s", tx.Hash().String())
 		}
 
 	}()
@@ -164,19 +164,19 @@ func (s *RpcServer) validateProof(inputChunkURL, outputChunkURL string) (bool, e
 		return false, fmt.Errorf("failed to get input chunk duration: %s", err)
 	}
 
-	logger.Debugf("original duration is %f\n", inDuration)
+	logger.Debugf("original duration is %f", inDuration)
 
 	outDuration, err := getDuration(outputChunkURL)
 	if err != nil || outDuration == 0 {
 		return false, fmt.Errorf("failed to get output chunk duration: %s", err)
 	}
 
-	logger.Debugf("transcoded duration is %f\n", outDuration)
+	logger.Debugf("transcoded duration is %f", outDuration)
 
 	duration := math.Min(inDuration, outDuration)
 	seekTo := rand.Float64() * duration
 
-	logger.Debugf("duration is %f, extracting at time %f\n", duration, seekTo)
+	logger.Debugf("duration is %f, extracting at time %f", duration, seekTo)
 
 	inFrame, err := extractFrame(inputChunkURL, seekTo)
 	if err != nil {
@@ -215,7 +215,7 @@ func (s *RpcServer) validateProof(inputChunkURL, outputChunkURL string) (bool, e
 		return false, fmt.Errorf("failed to calc distance: %s", err)
 	}
 
-	logger.Infof("distance is %d\n", distance)
+	logger.Infof("distance is %d", distance)
 
 	// [0,32], 0 - same, 32 - completely different
 	if distance <= s.threshold {
