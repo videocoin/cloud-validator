@@ -84,6 +84,7 @@ github.com/grpc-ecosystem/go-grpc-middleware/validator
 github.com/grpc-ecosystem/go-grpc-prometheus
 # github.com/grpc-ecosystem/grpc-gateway v1.11.3
 github.com/grpc-ecosystem/grpc-gateway/internal
+github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger/options
 github.com/grpc-ecosystem/grpc-gateway/runtime
 github.com/grpc-ecosystem/grpc-gateway/utilities
 # github.com/kelseyhightower/envconfig v1.4.0
@@ -159,6 +160,8 @@ github.com/uber/jaeger-lib/metrics
 github.com/vansante/go-ffprobe
 # github.com/videocoin/cloud-api v0.2.14 => ../cloud-api
 github.com/videocoin/cloud-api/rpc
+github.com/videocoin/cloud-api/streams/private/v1
+github.com/videocoin/cloud-api/streams/v1
 github.com/videocoin/cloud-api/validator/v1
 # github.com/videocoin/cloud-pkg v0.0.6 => ../cloud-pkg
 github.com/videocoin/cloud-pkg/bcops

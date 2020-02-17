@@ -19,6 +19,7 @@ type Config struct {
 	Threshold                 int    `required:"true" envconfig:"THRESHOLD" default:"10"`
 	BaseInputURL              string `required:"true" envconfig:"BASE_INPUT_URL"`
 	BaseOutputURL             string `required:"true" envconfig:"BASE_OUTPUT_URL"`
+	StreamsRPCAddr            string `required:"true" envconfig:"STREAMS_RPC_ADDR" default:"0.0.0.0:5102" `
 
 	Logger *logrus.Entry `envconfig:"-"`
 }

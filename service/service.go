@@ -1,6 +1,8 @@
 package service
 
 import (
+	pstreamsv1 "github.com/videocoin/cloud-api/streams/private/v1"
+	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-validator/contract"
 )
 
@@ -23,6 +25,12 @@ func NewService(cfg *Config) (*Service, error) {
 		return nil, err
 	}
 
+	conn, err := grpcutil.Connect(cfg.StreamsRPCAddr, cfg.Logger.WithField("system", "streamscli"))
+	if err != nil {
+		return nil, err
+	}
+	streams := pstreamsv1.NewStreamsServiceClient(conn)
+
 	rpcConfig := &RpcServerOptions{
 		Addr:          cfg.RPCAddr,
 		Contract:      contract,
@@ -30,6 +38,7 @@ func NewService(cfg *Config) (*Service, error) {
 		Logger:        cfg.Logger,
 		BaseInputURL:  cfg.BaseInputURL,
 		BaseOutputURL: cfg.BaseOutputURL,
+		Streams:       streams,
 	}
 
 	rpc, err := NewRpcServer(rpcConfig)

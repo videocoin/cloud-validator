@@ -13,6 +13,7 @@ import (
 	"github.com/gogo/protobuf/types"
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
+	pstreamsv1 "github.com/videocoin/cloud-api/streams/private/v1"
 	v1 "github.com/videocoin/cloud-api/validator/v1"
 	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-pkg/retry"
@@ -30,20 +31,19 @@ type RpcServerOptions struct {
 	Logger        *logrus.Entry
 	BaseInputURL  string
 	BaseOutputURL string
+	Streams       pstreamsv1.StreamsServiceClient
 }
 
 type RpcServer struct {
-	grpc   *grpc.Server
-	listen net.Listener
-	addr   string
-
-	contract  *contract.ContractClient
-	threshold int
-
-	logger *logrus.Entry
-
+	grpc          *grpc.Server
+	listen        net.Listener
+	addr          string
+	contract      *contract.ContractClient
+	threshold     int
+	logger        *logrus.Entry
 	baseInputURL  string
 	baseOutputURL string
+	streams       pstreamsv1.StreamsServiceClient
 }
 
 func NewRpcServer(opts *RpcServerOptions) (*RpcServer, error) {
@@ -65,6 +65,7 @@ func NewRpcServer(opts *RpcServerOptions) (*RpcServer, error) {
 		logger:        opts.Logger,
 		baseInputURL:  opts.BaseInputURL,
 		baseOutputURL: opts.BaseOutputURL,
+		streams:       opts.Streams,
 	}
 
 	v1.RegisterValidatorServiceServer(grpcServer, rpcServer)
@@ -137,6 +138,15 @@ func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 			}
 
 			logger.Debugf("tx %s", tx.Hash().String())
+		}
+
+		if req.IsLast {
+			pdReq := &pstreamsv1.StreamRequest{Id: req.StreamId}
+			_, err := s.streams.PublishDone(context.Background(), pdReq)
+			if err != nil {
+				logger.WithError(err).Error("failed to publish done")
+				return
+			}
 		}
 
 	}()
