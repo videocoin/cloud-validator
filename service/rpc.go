@@ -24,9 +24,9 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-type RpcServerOptions struct {
+type RPCServerOptions struct {
 	Addr          string
-	Contract      *contract.ContractClient
+	Contract      *contract.Client
 	Threshold     int
 	Logger        *logrus.Entry
 	BaseInputURL  string
@@ -34,11 +34,11 @@ type RpcServerOptions struct {
 	Streams       pstreamsv1.StreamsServiceClient
 }
 
-type RpcServer struct {
+type RPCServer struct {
 	grpc          *grpc.Server
 	listen        net.Listener
 	addr          string
-	contract      *contract.ContractClient
+	contract      *contract.Client
 	threshold     int
 	logger        *logrus.Entry
 	baseInputURL  string
@@ -46,21 +46,21 @@ type RpcServer struct {
 	streams       pstreamsv1.StreamsServiceClient
 }
 
-func NewRpcServer(opts *RpcServerOptions) (*RpcServer, error) {
+func NewRPCServer(opts *RPCServerOptions) (*RPCServer, error) {
 	grpcOpts := grpcutil.DefaultServerOpts(opts.Logger)
-	grpcServer := grpc.NewServer(grpcOpts...)
+	gRPCServer := grpc.NewServer(grpcOpts...)
 	healthService := health.NewServer()
-	grpc_health_v1.RegisterHealthServer(grpcServer, healthService)
+	grpc_health_v1.RegisterHealthServer(gRPCServer, healthService)
 	listen, err := net.Listen("tcp", opts.Addr)
 	if err != nil {
 		return nil, err
 	}
 
-	rpcServer := &RpcServer{
+	RPCServer := &RPCServer{
 		addr:          opts.Addr,
 		contract:      opts.Contract,
 		threshold:     opts.Threshold,
-		grpc:          grpcServer,
+		grpc:          gRPCServer,
 		listen:        listen,
 		logger:        opts.Logger,
 		baseInputURL:  opts.BaseInputURL,
@@ -68,18 +68,18 @@ func NewRpcServer(opts *RpcServerOptions) (*RpcServer, error) {
 		streams:       opts.Streams,
 	}
 
-	v1.RegisterValidatorServiceServer(grpcServer, rpcServer)
-	reflection.Register(grpcServer)
+	v1.RegisterValidatorServiceServer(gRPCServer, RPCServer)
+	reflection.Register(gRPCServer)
 
-	return rpcServer, nil
+	return RPCServer, nil
 }
 
-func (s *RpcServer) Start() error {
+func (s *RPCServer) Start() error {
 	s.logger.Infof("starting rpc server on %s", s.addr)
 	return s.grpc.Serve(s.listen)
 }
 
-func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequest) (*types.Empty, error) {
+func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequest) (*types.Empty, error) {
 	span := opentracing.SpanFromContext(ctx)
 	span.SetTag("stream_contract_address", req.StreamContractAddress)
 
@@ -154,7 +154,7 @@ func (s *RpcServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 	return new(types.Empty), nil
 }
 
-func (s *RpcServer) validateProof(inputChunkURL, outputChunkURL string) (bool, error) {
+func (s *RPCServer) validateProof(inputChunkURL, outputChunkURL string) (bool, error) {
 	logger := s.logger.WithFields(
 		logrus.Fields{
 			"original":   inputChunkURL,

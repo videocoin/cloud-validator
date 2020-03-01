@@ -8,11 +8,11 @@ import (
 
 type Service struct {
 	cfg *Config
-	rpc *RpcServer
+	rpc *RPCServer
 }
 
 func NewService(cfg *Config) (*Service, error) {
-	contractOpts := &contract.ContractClientOpts{
+	contractOpts := &contract.ClientOpts{
 		RPCNodeHTTPAddr: cfg.RPCNodeHTTPAddr,
 		ContractAddr:    cfg.StreamManagerContractAddr,
 		Key:             cfg.Key,
@@ -20,7 +20,7 @@ func NewService(cfg *Config) (*Service, error) {
 		Logger:          cfg.Logger.WithField("system", "contract"),
 	}
 
-	contract, err := contract.NewContractClient(contractOpts)
+	contract, err := contract.NewClient(contractOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -31,7 +31,7 @@ func NewService(cfg *Config) (*Service, error) {
 	}
 	streams := pstreamsv1.NewStreamsServiceClient(conn)
 
-	rpcConfig := &RpcServerOptions{
+	rpcConfig := &RPCServerOptions{
 		Addr:          cfg.RPCAddr,
 		Contract:      contract,
 		Threshold:     cfg.Threshold,
@@ -41,7 +41,7 @@ func NewService(cfg *Config) (*Service, error) {
 		Streams:       streams,
 	}
 
-	rpc, err := NewRpcServer(rpcConfig)
+	rpc, err := NewRPCServer(rpcConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func NewService(cfg *Config) (*Service, error) {
 }
 
 func (s *Service) Start() error {
-	go s.rpc.Start()
+	go s.rpc.Start()  //nolint
 	return nil
 }
 

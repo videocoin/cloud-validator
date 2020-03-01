@@ -16,7 +16,7 @@ import (
 	sm "github.com/videocoin/cloud-pkg/streamManager"
 )
 
-type ContractClientOpts struct {
+type ClientOpts struct {
 	RPCNodeHTTPAddr string
 	ContractAddr    string
 
@@ -26,7 +26,7 @@ type ContractClientOpts struct {
 	Logger *logrus.Entry
 }
 
-type ContractClient struct {
+type Client struct {
 	client        *ethclient.Client
 	streamManager *sm.Manager
 	transactOpts  *bind.TransactOpts
@@ -34,7 +34,7 @@ type ContractClient struct {
 	logger *logrus.Entry
 }
 
-func NewContractClient(opts *ContractClientOpts) (*ContractClient, error) {
+func NewClient(opts *ClientOpts) (*Client, error) {
 	client, err := ethclient.Dial(opts.RPCNodeHTTPAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial eth client: %s", err.Error())
@@ -51,7 +51,7 @@ func NewContractClient(opts *ContractClientOpts) (*ContractClient, error) {
 		return nil, fmt.Errorf("failed to get transact opts: %s", err.Error())
 	}
 
-	return &ContractClient{
+	return &Client{
 		client:        client,
 		streamManager: manager,
 		transactOpts:  transactOpts,
@@ -76,7 +76,7 @@ func getTransactOpts(ctx context.Context, client *ethclient.Client, key, secret 
 	return transactOpts, nil
 }
 
-func (c *ContractClient) waitMinedAndCheck(tx *types.Transaction) error {
+func (c *Client) waitMinedAndCheck(tx *types.Transaction) error {
 	cancelCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

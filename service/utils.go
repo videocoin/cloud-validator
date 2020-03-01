@@ -65,7 +65,7 @@ func checkSource(url string) error {
 		}
 	} else if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
 		hc := http.Client{
-			Timeout: time.Duration(5 * time.Second),
+			Timeout: 5 * time.Second,
 		}
 		resp, err := hc.Get(url)
 		if err != nil {

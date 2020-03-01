@@ -11,7 +11,7 @@ import (
 	"github.com/videocoin/cloud-pkg/stream"
 )
 
-func (c *ContractClient) ValidateProof(
+func (c *Client) ValidateProof(
 	ctx context.Context,
 	streamContractAddress string,
 	profileID,
@@ -38,7 +38,7 @@ func (c *ContractClient) ValidateProof(
 	return tx, nil
 }
 
-func (c *ContractClient) ScrapProof(
+func (c *Client) ScrapProof(
 	ctx context.Context,
 	streamContractAddress string,
 	profileID,
