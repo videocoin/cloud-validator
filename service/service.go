@@ -54,9 +54,10 @@ func NewService(cfg *Config) (*Service, error) {
 	return svc, nil
 }
 
-func (s *Service) Start() error {
-	go s.rpc.Start()  //nolint
-	return nil
+func (s *Service) Start(errCh chan error) {
+	go func() {
+		errCh <- s.rpc.Start()
+	}()
 }
 
 func (s *Service) Stop() error {
