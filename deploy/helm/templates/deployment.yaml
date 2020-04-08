@@ -67,6 +67,11 @@ spec:
                 secretKeyRef:
                   name: {{ .Chart.Name }}
                   key: rpcNodeHttpAddr
+            - name: MQURI
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Chart.Name }}
+                  key: mqUri
             - name: VALIDATOR_KEY
               valueFrom:
                 secretKeyRef:

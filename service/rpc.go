@@ -18,6 +18,7 @@ import (
 	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-pkg/retry"
 	"github.com/videocoin/cloud-validator/contract"
+	"github.com/videocoin/cloud-validator/eventbus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -32,6 +33,7 @@ type RPCServerOptions struct {
 	BaseInputURL  string
 	BaseOutputURL string
 	Streams       pstreamsv1.StreamsServiceClient
+	EB            *eventbus.EventBus
 }
 
 type RPCServer struct {
@@ -44,6 +46,7 @@ type RPCServer struct {
 	baseInputURL  string
 	baseOutputURL string
 	streams       pstreamsv1.StreamsServiceClient
+	eb            *eventbus.EventBus
 }
 
 func NewRPCServer(opts *RPCServerOptions) (*RPCServer, error) {
@@ -66,6 +69,7 @@ func NewRPCServer(opts *RPCServerOptions) (*RPCServer, error) {
 		baseInputURL:  opts.BaseInputURL,
 		baseOutputURL: opts.BaseOutputURL,
 		streams:       opts.Streams,
+		eb:            opts.EB,
 	}
 
 	v1.RegisterValidatorServiceServer(gRPCServer, RPCServer)
@@ -92,10 +96,9 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 	span.SetTag("profile_id", profileID.String())
 	span.SetTag("output_chunk_id", outputChunkID.String())
 
-	inputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseInputURL, req.StreamId, outputChunkID.Int64()-1)
-	outputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseOutputURL, req.StreamId, outputChunkID.Int64())
-
-	go func() {
+	go func(streamID, streamContractAddress string, profileID, outputChunkID *big.Int) {
+		inputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseInputURL, streamID, outputChunkID.Int64()-1)
+		outputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseOutputURL, streamID, outputChunkID.Int64())
 
 		logger := s.logger.WithFields(
 			logrus.Fields{
@@ -105,30 +108,33 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 
 		isValid, err := s.validateProof(inputChunkURL, outputChunkURL)
 		if err != nil {
-			logger.Error(err)
-
-			_, err := s.contract.ValidateProof(ctx, req.StreamContractAddress, profileID, outputChunkID)
-			if err != nil {
-				logger.WithError(err).Error("failed to validate proof")
-				return
-			}
-
+			logger.Errorf("failed to validate proof: %s", err)
 			return
 		}
 
 		if isValid {
-			tx, err := s.contract.ValidateProof(ctx, req.StreamContractAddress, profileID, outputChunkID)
+			tx, err := s.contract.ValidateProof(ctx, streamContractAddress, profileID, outputChunkID)
 			if err != nil {
 				if tx != nil {
 					logger.Debugf("tx %s", tx.Hash().String())
 				}
-				logger.WithError(err).Error("failed to validate proof")
+				logger.WithError(err).Error("failed to call contract validate proof")
 				return
 			}
 
 			logger.Debugf("tx %s", tx.Hash().String())
+
+			err = s.eb.EmitEvent(context.Background(), &v1.Event{
+				Type:                  v1.EventTypeValidatedProof,
+				StreamContractAddress: streamContractAddress,
+				ChunkNum:              outputChunkID.Uint64(),
+			})
+			if err != nil {
+				logger.WithError(err).Error("failed to emit validated proof event")
+				return
+			}
 		} else {
-			tx, err := s.contract.ScrapProof(ctx, req.StreamContractAddress, profileID, outputChunkID)
+			tx, err := s.contract.ScrapProof(ctx, streamContractAddress, profileID, outputChunkID)
 			if err != nil {
 				if tx != nil {
 					logger.Debugf("tx %s", tx.Hash().String())
@@ -138,6 +144,16 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 			}
 
 			logger.Debugf("tx %s", tx.Hash().String())
+
+			err = s.eb.EmitEvent(context.Background(), &v1.Event{
+				Type:                  v1.EventTypeScrapedProof,
+				StreamContractAddress: streamContractAddress,
+				ChunkNum:              outputChunkID.Uint64(),
+			})
+			if err != nil {
+				logger.WithError(err).Error("failed to emit scrap proof event")
+				return
+			}
 		}
 
 		if req.IsLast {
@@ -149,7 +165,7 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 			}
 		}
 
-	}()
+	}(req.StreamId, req.StreamContractAddress, profileID, outputChunkID)
 
 	return new(types.Empty), nil
 }

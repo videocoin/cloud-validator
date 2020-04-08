@@ -8,8 +8,9 @@ import (
 )
 
 type Config struct {
-	Name    string `envconfig:"-"`
-	Version string `envconfig:"-"`
+	Name    string        `envconfig:"-"`
+	Version string        `envconfig:"-"`
+	Logger  *logrus.Entry `envconfig:"-"`
 
 	RPCAddr                   string `required:"true" envconfig:"RPC_ADDR" default:"127.0.0.1:5020"`
 	RPCNodeHTTPAddr           string `required:"true" envconfig:"RPC_NODE_HTTP_ADDR"`
@@ -20,8 +21,7 @@ type Config struct {
 	BaseInputURL              string `required:"true" envconfig:"BASE_INPUT_URL"`
 	BaseOutputURL             string `required:"true" envconfig:"BASE_OUTPUT_URL"`
 	StreamsRPCAddr            string `required:"true" envconfig:"STREAMS_RPC_ADDR" default:"0.0.0.0:5102" `
-
-	Logger *logrus.Entry `envconfig:"-"`
+	MQURI                     string `envconfig:"MQURI" default:"amqp://guest:guest@127.0.0.1:5672"`
 }
 
 var cfg Config

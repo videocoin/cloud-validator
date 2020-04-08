@@ -4,11 +4,13 @@ import (
 	pstreamsv1 "github.com/videocoin/cloud-api/streams/private/v1"
 	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-validator/contract"
+	"github.com/videocoin/cloud-validator/eventbus"
 )
 
 type Service struct {
 	cfg *Config
 	rpc *RPCServer
+	eb  *eventbus.EventBus
 }
 
 func NewService(cfg *Config) (*Service, error) {
@@ -31,6 +33,15 @@ func NewService(cfg *Config) (*Service, error) {
 	}
 	streams := pstreamsv1.NewStreamsServiceClient(conn)
 
+	eb, err := eventbus.NewEventBus(
+		cfg.MQURI,
+		eventbus.WithLogger(cfg.Logger.WithField("system", "eventbus")),
+		eventbus.WithName("validator"),
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	rpcConfig := &RPCServerOptions{
 		Addr:          cfg.RPCAddr,
 		Contract:      contract,
@@ -39,6 +50,7 @@ func NewService(cfg *Config) (*Service, error) {
 		BaseInputURL:  cfg.BaseInputURL,
 		BaseOutputURL: cfg.BaseOutputURL,
 		Streams:       streams,
+		EB:            eb,
 	}
 
 	rpc, err := NewRPCServer(rpcConfig)
@@ -49,6 +61,7 @@ func NewService(cfg *Config) (*Service, error) {
 	svc := &Service{
 		cfg: cfg,
 		rpc: rpc,
+		eb:  eb,
 	}
 
 	return svc, nil
@@ -58,8 +71,12 @@ func (s *Service) Start(errCh chan error) {
 	go func() {
 		errCh <- s.rpc.Start()
 	}()
+
+	go func() {
+		errCh <- s.eb.Start()
+	}()
 }
 
 func (s *Service) Stop() error {
-	return nil
+	return s.eb.Stop()
 }
