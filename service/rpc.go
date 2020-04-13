@@ -13,63 +13,65 @@ import (
 	"github.com/gogo/protobuf/types"
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
+	emitterv1 "github.com/videocoin/cloud-api/emitter/v1"
 	pstreamsv1 "github.com/videocoin/cloud-api/streams/private/v1"
 	v1 "github.com/videocoin/cloud-api/validator/v1"
 	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-pkg/retry"
-	"github.com/videocoin/cloud-validator/contract"
 	"github.com/videocoin/cloud-validator/eventbus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
+	healthv1 "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 )
 
 type RPCServerOptions struct {
-	Addr          string
-	Contract      *contract.Client
-	Threshold     int
 	Logger        *logrus.Entry
+	Addr          string
+	Threshold     int
 	BaseInputURL  string
 	BaseOutputURL string
-	Streams       pstreamsv1.StreamsServiceClient
 	EB            *eventbus.EventBus
+	Streams       pstreamsv1.StreamsServiceClient
+	Emitter       emitterv1.EmitterServiceClient
 }
 
 type RPCServer struct {
+	logger        *logrus.Entry
 	grpc          *grpc.Server
 	listen        net.Listener
 	addr          string
-	contract      *contract.Client
 	threshold     int
-	logger        *logrus.Entry
 	baseInputURL  string
 	baseOutputURL string
-	streams       pstreamsv1.StreamsServiceClient
 	eb            *eventbus.EventBus
+	streams       pstreamsv1.StreamsServiceClient
+	emitter       emitterv1.EmitterServiceClient
 }
 
 func NewRPCServer(opts *RPCServerOptions) (*RPCServer, error) {
 	grpcOpts := grpcutil.DefaultServerOpts(opts.Logger)
 	gRPCServer := grpc.NewServer(grpcOpts...)
+
 	healthService := health.NewServer()
-	grpc_health_v1.RegisterHealthServer(gRPCServer, healthService)
+	healthv1.RegisterHealthServer(gRPCServer, healthService)
+
 	listen, err := net.Listen("tcp", opts.Addr)
 	if err != nil {
 		return nil, err
 	}
 
 	RPCServer := &RPCServer{
+		logger:        opts.Logger,
 		addr:          opts.Addr,
-		contract:      opts.Contract,
 		threshold:     opts.Threshold,
 		grpc:          gRPCServer,
 		listen:        listen,
-		logger:        opts.Logger,
 		baseInputURL:  opts.BaseInputURL,
 		baseOutputURL: opts.BaseOutputURL,
-		streams:       opts.Streams,
 		eb:            opts.EB,
+		streams:       opts.Streams,
+		emitter:       opts.Emitter,
 	}
 
 	v1.RegisterValidatorServiceServer(gRPCServer, RPCServer)
@@ -112,17 +114,20 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 			return
 		}
 
+		vctx, _ := context.WithTimeout(context.Background(), time.Second*60*2)
 		if isValid {
-			tx, err := s.contract.ValidateProof(ctx, streamContractAddress, profileID, outputChunkID)
+			validateProofReq := &emitterv1.ValidateProofRequest{
+				StreamContractAddress: streamContractAddress,
+				ProfileId:             profileID.Bytes(),
+				ChunkId:               outputChunkID.Bytes(),
+			}
+			validateProofResp, err := s.emitter.ValidateProof(vctx, validateProofReq)
 			if err != nil {
-				if tx != nil {
-					logger.Debugf("tx %s", tx.Hash().String())
-				}
 				logger.WithError(err).Error("failed to call contract validate proof")
 				return
 			}
 
-			logger.Debugf("tx %s", tx.Hash().String())
+			logger.Debugf("tx %s", string(validateProofResp.TxId))
 
 			err = s.eb.EmitEvent(context.Background(), &v1.Event{
 				Type:                  v1.EventTypeValidatedProof,
@@ -134,16 +139,18 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 				return
 			}
 		} else {
-			tx, err := s.contract.ScrapProof(ctx, streamContractAddress, profileID, outputChunkID)
+			scrapProofReq := &emitterv1.ScrapProofRequest{
+				StreamContractAddress: streamContractAddress,
+				ProfileId:             profileID.Bytes(),
+				ChunkId:               outputChunkID.Bytes(),
+			}
+			scrapProofResp, err := s.emitter.ScrapProof(vctx, scrapProofReq)
 			if err != nil {
-				if tx != nil {
-					logger.Debugf("tx %s", tx.Hash().String())
-				}
 				logger.WithError(err).Error("failed to scrap proof")
 				return
 			}
 
-			logger.Debugf("tx %s", tx.Hash().String())
+			logger.Debugf("tx %s", string(scrapProofResp.TxId))
 
 			err = s.eb.EmitEvent(context.Background(), &v1.Event{
 				Type:                  v1.EventTypeScrapedProof,

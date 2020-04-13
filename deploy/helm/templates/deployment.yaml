@@ -62,26 +62,16 @@ spec:
                 configMapKeyRef:
                   name: {{ .Chart.Name }}
                   key: streamsRpcAddr
-            - name: RPC_NODE_HTTP_ADDR
+            - name: EMITTER_RPC_ADDR
               valueFrom:
-                secretKeyRef:
+                configMapKeyRef:
                   name: {{ .Chart.Name }}
-                  key: rpcNodeHttpAddr
+                  key: emitterRpcAddr
             - name: MQURI
               valueFrom:
                 secretKeyRef:
                   name: {{ .Chart.Name }}
                   key: mqUri
-            - name: VALIDATOR_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Chart.Name }}
-                  key: key
-            - name: VALIDATOR_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Chart.Name }}
-                  key: secret
           {{- if .Values.resources }}
           resources:
 {{ toYaml .Values.resources | indent 12 }}

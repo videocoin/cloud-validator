@@ -12,16 +12,13 @@ type Config struct {
 	Version string        `envconfig:"-"`
 	Logger  *logrus.Entry `envconfig:"-"`
 
-	RPCAddr                   string `required:"true" envconfig:"RPC_ADDR" default:"127.0.0.1:5020"`
-	RPCNodeHTTPAddr           string `required:"true" envconfig:"RPC_NODE_HTTP_ADDR"`
-	StreamManagerContractAddr string `required:"true" envconfig:"STREAM_MANAGER_CONTRACT_ADDR"`
-	Key                       string `required:"true" envconfig:"VALIDATOR_KEY"`
-	Secret                    string `required:"true" envconfig:"VALIDATOR_SECRET"`
-	Threshold                 int    `required:"true" envconfig:"THRESHOLD" default:"10"`
-	BaseInputURL              string `required:"true" envconfig:"BASE_INPUT_URL"`
-	BaseOutputURL             string `required:"true" envconfig:"BASE_OUTPUT_URL"`
-	StreamsRPCAddr            string `required:"true" envconfig:"STREAMS_RPC_ADDR" default:"0.0.0.0:5102" `
-	MQURI                     string `envconfig:"MQURI" default:"amqp://guest:guest@127.0.0.1:5672"`
+	RPCAddr        string `envconfig:"RPC_ADDR" default:"127.0.0.1:5020"`
+	Threshold      int    `envconfig:"THRESHOLD" default:"10"`
+	BaseInputURL   string `envconfig:"BASE_INPUT_URL" required:"true"`
+	BaseOutputURL  string `envconfig:"BASE_OUTPUT_URL" required:"true"`
+	MQURI          string `envconfig:"MQURI" default:"amqp://guest:guest@127.0.0.1:5672"`
+	StreamsRPCAddr string `envconfig:"STREAMS_RPC_ADDR" default:"0.0.0.0:5102"`
+	EmitterRPCAddr string `envconfig:"EMITTER_RPC_ADDR" default:"0.0.0.0:5003"`
 }
 
 var cfg Config

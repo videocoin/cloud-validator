@@ -54,11 +54,9 @@ function get_vars() {
     readonly BASE_INPUT_URL=`consul kv get -http-addr=${CONSUL_ADDR} config/${ENV}/services/${CHART_NAME}/vars/baseInputUrl`
     readonly BASE_OUTPUT_URL=`consul kv get -http-addr=${CONSUL_ADDR} config/${ENV}/services/${CHART_NAME}/vars/baseOutputUrl`
     readonly STREAMS_RPC_ADDR=`consul kv get -http-addr=${CONSUL_ADDR} config/${ENV}/services/${CHART_NAME}/vars/streamsRpcAddr`
+    readonly EMITTER_RPC_ADDR=`consul kv get -http-addr=${CONSUL_ADDR} config/${ENV}/services/${CHART_NAME}/vars/emitterRpcAddr`
 
-    readonly RPC_NODE_HTTP_ADDR=`consul kv get -http-addr=${CONSUL_ADDR} config/${ENV}/services/${CHART_NAME}/secrets/rpcNodeHttpAddr`
     readonly MQ_URI=`consul kv get -http-addr=${CONSUL_ADDR} config/${ENV}/services/${CHART_NAME}/secrets/mqUri`
-    readonly SECRET=`consul kv get -http-addr=${CONSUL_ADDR} config/${ENV}/services/${CHART_NAME}/secrets/secret`
-    readonly KEY=`consul kv get -http-addr=${CONSUL_ADDR} config/${ENV}/services/${CHART_NAME}/secrets/key`
 }
 
 function deploy() {
@@ -72,10 +70,8 @@ function deploy() {
         --set config.baseInputUrl="${BASE_INPUT_URL}" \
         --set config.baseOutputUrl="${BASE_OUTPUT_URL}" \
         --set config.streamsRpcAddr="${STREAMS_RPC_ADDR}" \
-        --set secrets.rpcNodeHttpAddr="${RPC_NODE_HTTP_ADDR}" \
+        --set config.emitterRpcAddr="${EMITTER_RPC_ADDR}" \
         --set secrets.mqUri="${MQ_URI}" \
-        --set secrets.secret="${SECRET}" \
-        --set secrets.key="${KEY}" \
         --wait ${CHART_NAME} ${CHART_DIR}
 }
 
