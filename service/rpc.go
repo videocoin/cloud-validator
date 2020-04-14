@@ -114,7 +114,7 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 			return
 		}
 
-		vctx, _ := context.WithTimeout(context.Background(), time.Second*60*2)
+		vctx := context.Background()
 		if isValid {
 			logger.Info("validate proof")
 
