@@ -116,6 +116,8 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 
 		vctx, _ := context.WithTimeout(context.Background(), time.Second*60*2)
 		if isValid {
+			logger.Info("validate proof")
+
 			validateProofReq := &emitterv1.ValidateProofRequest{
 				StreamContractAddress: streamContractAddress,
 				ProfileId:             profileID.Bytes(),
@@ -139,6 +141,8 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 				return
 			}
 		} else {
+			logger.Info("scrap proof")
+
 			scrapProofReq := &emitterv1.ScrapProofRequest{
 				StreamContractAddress: streamContractAddress,
 				ProfileId:             profileID.Bytes(),
