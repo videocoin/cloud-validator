@@ -14,7 +14,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	emitterv1 "github.com/videocoin/cloud-api/emitter/v1"
-	pstreamsv1 "github.com/videocoin/cloud-api/streams/private/v1"
 	v1 "github.com/videocoin/cloud-api/validator/v1"
 	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-pkg/retry"
@@ -32,7 +31,6 @@ type RPCServerOptions struct {
 	BaseInputURL  string
 	BaseOutputURL string
 	EB            *eventbus.EventBus
-	Streams       pstreamsv1.StreamsServiceClient
 	Emitter       emitterv1.EmitterServiceClient
 }
 
@@ -45,7 +43,6 @@ type RPCServer struct {
 	baseInputURL  string
 	baseOutputURL string
 	eb            *eventbus.EventBus
-	streams       pstreamsv1.StreamsServiceClient
 	emitter       emitterv1.EmitterServiceClient
 }
 
@@ -70,7 +67,6 @@ func NewRPCServer(opts *RPCServerOptions) (*RPCServer, error) {
 		baseInputURL:  opts.BaseInputURL,
 		baseOutputURL: opts.BaseOutputURL,
 		eb:            opts.EB,
-		streams:       opts.Streams,
 		emitter:       opts.Emitter,
 	}
 
@@ -166,16 +162,6 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 				return
 			}
 		}
-
-		if req.IsLast {
-			pdReq := &pstreamsv1.StreamRequest{Id: req.StreamId}
-			_, err := s.streams.PublishDone(context.Background(), pdReq)
-			if err != nil {
-				logger.WithError(err).Error("failed to publish done")
-				return
-			}
-		}
-
 	}(req.StreamId, req.StreamContractAddress, profileID, outputChunkID)
 
 	return new(types.Empty), nil

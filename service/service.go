@@ -2,7 +2,6 @@ package service
 
 import (
 	emitterv1 "github.com/videocoin/cloud-api/emitter/v1"
-	pstreamsv1 "github.com/videocoin/cloud-api/streams/private/v1"
 	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-validator/eventbus"
 	"google.golang.org/grpc"
@@ -15,14 +14,8 @@ type Service struct {
 }
 
 func NewService(cfg *Config) (*Service, error) {
-	conn, err := grpcutil.Connect(cfg.StreamsRPCAddr, cfg.Logger.WithField("system", "streamscli"))
-	if err != nil {
-		return nil, err
-	}
-	streams := pstreamsv1.NewStreamsServiceClient(conn)
-
 	opts := grpcutil.DefaultClientDialOpts(cfg.Logger.WithField("system", "emittercli"))
-	conn, err = grpc.Dial(cfg.EmitterRPCAddr, opts...)
+	conn, err := grpc.Dial(cfg.EmitterRPCAddr, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +37,6 @@ func NewService(cfg *Config) (*Service, error) {
 		BaseInputURL:  cfg.BaseInputURL,
 		BaseOutputURL: cfg.BaseOutputURL,
 		EB:            eb,
-		Streams:       streams,
 		Emitter:       emitter,
 	}
 

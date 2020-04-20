@@ -17,7 +17,6 @@ type Config struct {
 	BaseInputURL   string `envconfig:"BASE_INPUT_URL" required:"true"`
 	BaseOutputURL  string `envconfig:"BASE_OUTPUT_URL" required:"true"`
 	MQURI          string `envconfig:"MQURI" default:"amqp://guest:guest@127.0.0.1:5672"`
-	StreamsRPCAddr string `envconfig:"STREAMS_RPC_ADDR" default:"0.0.0.0:5102"`
 	EmitterRPCAddr string `envconfig:"EMITTER_RPC_ADDR" default:"0.0.0.0:5003"`
 }
 

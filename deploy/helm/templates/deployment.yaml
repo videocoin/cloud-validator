@@ -57,11 +57,6 @@ spec:
                 configMapKeyRef:
                   name: {{ .Chart.Name }}
                   key: baseOutputUrl
-            - name: STREAMS_RPC_ADDR
-              valueFrom:
-                configMapKeyRef:
-                  name: {{ .Chart.Name }}
-                  key: streamsRpcAddr
             - name: EMITTER_RPC_ADDR
               valueFrom:
                 configMapKeyRef:
