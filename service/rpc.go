@@ -10,7 +10,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/gogo/protobuf/types"
 	"github.com/opentracing/opentracing-go"
 	"github.com/sirupsen/logrus"
 	emitterv1 "github.com/videocoin/cloud-api/emitter/v1"
@@ -81,90 +80,107 @@ func (s *RPCServer) Start() error {
 	return s.grpc.Serve(s.listen)
 }
 
-func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequest) (*types.Empty, error) {
+func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequest) (*v1.ValidateProofResponse, error) {
+	profileID := new(big.Int).SetBytes(req.ProfileId)
+	chunkID := new(big.Int).SetBytes(req.ChunkId)
+
 	span := opentracing.SpanFromContext(ctx)
+	span.SetTag("stream_id", req.StreamId)
 	span.SetTag("stream_contract_address", req.StreamContractAddress)
-
-	profileID := new(big.Int)
-	profileID.SetBytes(req.ProfileId)
-
-	outputChunkID := new(big.Int)
-	outputChunkID.SetBytes(req.OutputChunkId)
-
 	span.SetTag("profile_id", profileID.String())
-	span.SetTag("output_chunk_id", outputChunkID.String())
+	span.SetTag("output_chunk_id", chunkID.String())
 
-	go func(streamID, streamContractAddress string, profileID, outputChunkID *big.Int) {
-		inputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseInputURL, streamID, outputChunkID.Int64()-1)
-		outputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseOutputURL, streamID, outputChunkID.Int64())
+	streamID := req.StreamId
+	streamContractAddress := req.StreamContractAddress
 
-		logger := s.logger.WithFields(
-			logrus.Fields{
-				"original":   inputChunkURL,
-				"transcoded": outputChunkURL,
-			})
+	inputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseInputURL, streamID, chunkID.Int64()-1)
+	outputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseOutputURL, streamID, chunkID.Int64())
 
-		isValid, err := s.validateProof(inputChunkURL, outputChunkURL)
+	logger := s.logger.WithFields(
+		logrus.Fields{
+			"original":   inputChunkURL,
+			"transcoded": outputChunkURL,
+		})
+
+	resp := &v1.ValidateProofResponse{}
+
+	isValid, err := s.validateProof(inputChunkURL, outputChunkURL)
+	if err != nil {
+		logger.Errorf("failed to validate proof: %s", err)
+		return nil, err
+	}
+
+	if isValid {
+		logger.Info("validate proof")
+
+		validateProofReq := &emitterv1.ValidateProofRequest{
+			StreamContractAddress: streamContractAddress,
+			ProfileId:             profileID.Bytes(),
+			ChunkId:               chunkID.Bytes(),
+		}
+		validateProofResp, err := s.emitter.ValidateProof(ctx, validateProofReq)
 		if err != nil {
-			logger.Errorf("failed to validate proof: %s", err)
-			return
+			logger.WithError(err).Error("failed to emitter.ValidateProof")
+			if validateProofResp != nil {
+				resp.ValidateProofTx = validateProofResp.Tx
+				resp.ValidateProofTxStatus = validateProofResp.Status
+			}
+			return resp, err
 		}
 
-		vctx := context.Background()
-		if isValid {
-			logger.Info("validate proof")
+		logger.Debugf("validate proof tx %s", validateProofResp.Tx)
 
-			validateProofReq := &emitterv1.ValidateProofRequest{
-				StreamContractAddress: streamContractAddress,
-				ProfileId:             profileID.Bytes(),
-				ChunkId:               outputChunkID.Bytes(),
-			}
-			validateProofResp, err := s.emitter.ValidateProof(vctx, validateProofReq)
-			if err != nil {
-				logger.WithError(err).Error("failed to call contract validate proof")
-				return
-			}
+		resp.ValidateProofTx = validateProofResp.Tx
+		resp.ValidateProofTxStatus = validateProofResp.Status
 
-			logger.Debugf("tx %s", string(validateProofResp.TxId))
-
+		go func() {
 			err = s.eb.EmitEvent(context.Background(), &v1.Event{
 				Type:                  v1.EventTypeValidatedProof,
 				StreamContractAddress: streamContractAddress,
-				ChunkNum:              outputChunkID.Uint64(),
+				ChunkNum:              chunkID.Uint64(),
 			})
 			if err != nil {
 				logger.WithError(err).Error("failed to emit validated proof event")
 				return
 			}
-		} else {
-			logger.Info("scrap proof")
+		}()
+	} else {
+		logger.Info("scrap proof")
 
-			scrapProofReq := &emitterv1.ScrapProofRequest{
-				StreamContractAddress: streamContractAddress,
-				ProfileId:             profileID.Bytes(),
-				ChunkId:               outputChunkID.Bytes(),
+		scrapProofReq := &emitterv1.ScrapProofRequest{
+			StreamContractAddress: streamContractAddress,
+			ProfileId:             profileID.Bytes(),
+			ChunkId:               chunkID.Bytes(),
+		}
+		scrapProofResp, err := s.emitter.ScrapProof(ctx, scrapProofReq)
+		if err != nil {
+			logger.WithError(err).Error("failed to emitter.ScrapProof")
+			if scrapProofResp != nil {
+				resp.ScrapProofTx = scrapProofResp.Tx
+				resp.ScrapProofTxStatus = scrapProofResp.Status
 			}
-			scrapProofResp, err := s.emitter.ScrapProof(vctx, scrapProofReq)
-			if err != nil {
-				logger.WithError(err).Error("failed to scrap proof")
-				return
-			}
+			return resp, err
+		}
 
-			logger.Debugf("tx %s", string(scrapProofResp.TxId))
+		resp.ScrapProofTx = scrapProofResp.Tx
+		resp.ScrapProofTxStatus = scrapProofResp.Status
 
+		logger.Debugf("scrap proof tx %s", string(scrapProofResp.Tx))
+
+		go func() {
 			err = s.eb.EmitEvent(context.Background(), &v1.Event{
 				Type:                  v1.EventTypeScrapedProof,
 				StreamContractAddress: streamContractAddress,
-				ChunkNum:              outputChunkID.Uint64(),
+				ChunkNum:              chunkID.Uint64(),
 			})
 			if err != nil {
 				logger.WithError(err).Error("failed to emit scrap proof event")
 				return
 			}
-		}
-	}(req.StreamId, req.StreamContractAddress, profileID, outputChunkID)
+		}()
+	}
 
-	return new(types.Empty), nil
+	return resp, nil
 }
 
 func (s *RPCServer) validateProof(inputChunkURL, outputChunkURL string) (bool, error) {

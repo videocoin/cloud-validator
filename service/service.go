@@ -1,10 +1,17 @@
 package service
 
 import (
+	"time"
+
+	grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpclogrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	grpctracing "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
+	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/opentracing/opentracing-go"
 	emitterv1 "github.com/videocoin/cloud-api/emitter/v1"
-	"github.com/videocoin/cloud-pkg/grpcutil"
 	"github.com/videocoin/cloud-validator/eventbus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 type Service struct {
@@ -14,8 +21,25 @@ type Service struct {
 }
 
 func NewService(cfg *Config) (*Service, error) {
-	opts := grpcutil.DefaultClientDialOpts(cfg.Logger.WithField("system", "emittercli"))
-	conn, err := grpc.Dial(cfg.EmitterRPCAddr, opts...)
+	grpcDialOpts := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(
+			grpc.UnaryClientInterceptor(grpcmiddleware.ChainUnaryClient(
+				grpctracing.UnaryClientInterceptor(
+					grpctracing.WithTracer(opentracing.GlobalTracer()),
+				),
+				grpcprometheus.UnaryClientInterceptor,
+				grpclogrus.UnaryClientInterceptor(cfg.Logger),
+			)),
+		),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:                time.Second * 10,
+			Timeout:             time.Second * 10,
+			PermitWithoutStream: true,
+		}),
+	}
+
+	conn, err := grpc.Dial(cfg.EmitterRPCAddr, grpcDialOpts...)
 	if err != nil {
 		return nil, err
 	}
