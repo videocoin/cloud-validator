@@ -103,15 +103,14 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 
 	resp := &v1.ValidateProofResponse{}
 
-	isValid, err := s.validateProof(inputChunkURL, outputChunkURL)
-	if err != nil {
-		logger.Errorf("failed to validate proof: %s", err)
-		return nil, err
-	}
-
 	otCtx := opentracing.ContextWithSpan(context.Background(), span)
 
-	if !isValid {
+	isValid, err := s.validateProof(inputChunkURL, outputChunkURL)
+	if !isValid || err != nil {
+		if err != nil {
+			logger.Errorf("failed to validate proof: %s", err)
+		}
+
 		logger.Info("scrap proof")
 
 		scrapProofReq := &emitterv1.ScrapProofRequest{
@@ -143,6 +142,8 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 			logger.WithError(err).Error("failed to emit scrap proof event")
 			return resp, nil
 		}
+
+		return resp, nil
 	}
 
 	logger.Info("validate proof")
