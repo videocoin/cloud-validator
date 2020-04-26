@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"math/rand"
 	"net"
 	"os"
 	"time"
@@ -211,7 +210,7 @@ func (s *RPCServer) validateProof(inputChunkURL, outputChunkURL string) (bool, e
 	logger.Debugf("transcoded duration is %f", outDuration)
 
 	duration := math.Min(inDuration, outDuration)
-	seekTo := rand.Float64() * duration
+	seekTo := float64(int64(duration) / 2)
 
 	logger.Debugf("duration is %f, extracting at time %f", duration, seekTo)
 
