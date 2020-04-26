@@ -24,13 +24,11 @@ func NewService(cfg *Config) (*Service, error) {
 	grpcDialOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(
-			grpc.UnaryClientInterceptor(grpcmiddleware.ChainUnaryClient(
-				grpctracing.UnaryClientInterceptor(
-					grpctracing.WithTracer(opentracing.GlobalTracer()),
-				),
+			grpcmiddleware.ChainUnaryClient(
+				grpctracing.UnaryClientInterceptor(grpctracing.WithTracer(opentracing.GlobalTracer())),
 				grpcprometheus.UnaryClientInterceptor,
 				grpclogrus.UnaryClientInterceptor(cfg.Logger),
-			)),
+			),
 		),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			Time:                time.Second * 10,

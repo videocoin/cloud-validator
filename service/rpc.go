@@ -110,41 +110,9 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 		return nil, err
 	}
 
-	if isValid {
-		logger.Info("validate proof")
+	otCtx := opentracing.ContextWithSpan(context.Background(), span)
 
-		validateProofReq := &emitterv1.ValidateProofRequest{
-			StreamContractAddress: streamContractAddress,
-			ProfileId:             profileID.Bytes(),
-			ChunkId:               chunkID.Bytes(),
-		}
-		validateProofResp, err := s.emitter.ValidateProof(ctx, validateProofReq)
-		if err != nil {
-			logger.WithError(err).Error("failed to emitter.ValidateProof")
-			if validateProofResp != nil {
-				resp.ValidateProofTx = validateProofResp.Tx
-				resp.ValidateProofTxStatus = validateProofResp.Status
-			}
-			return resp, err
-		}
-
-		logger.Debugf("validate proof tx %s", validateProofResp.Tx)
-
-		resp.ValidateProofTx = validateProofResp.Tx
-		resp.ValidateProofTxStatus = validateProofResp.Status
-
-		go func() {
-			err = s.eb.EmitEvent(context.Background(), &v1.Event{
-				Type:                  v1.EventTypeValidatedProof,
-				StreamContractAddress: streamContractAddress,
-				ChunkNum:              chunkID.Uint64(),
-			})
-			if err != nil {
-				logger.WithError(err).Error("failed to emit validated proof event")
-				return
-			}
-		}()
-	} else {
+	if !isValid {
 		logger.Info("scrap proof")
 
 		scrapProofReq := &emitterv1.ScrapProofRequest{
@@ -152,7 +120,7 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 			ProfileId:             profileID.Bytes(),
 			ChunkId:               chunkID.Bytes(),
 		}
-		scrapProofResp, err := s.emitter.ScrapProof(ctx, scrapProofReq)
+		scrapProofResp, err := s.emitter.ScrapProof(otCtx, scrapProofReq)
 		if err != nil {
 			logger.WithError(err).Error("failed to emitter.ScrapProof")
 			if scrapProofResp != nil {
@@ -165,19 +133,49 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 		resp.ScrapProofTx = scrapProofResp.Tx
 		resp.ScrapProofTxStatus = scrapProofResp.Status
 
-		logger.Debugf("scrap proof tx %s", string(scrapProofResp.Tx))
+		logger.Debugf("scrap proof tx %s", scrapProofResp.Tx)
 
-		go func() {
-			err = s.eb.EmitEvent(context.Background(), &v1.Event{
-				Type:                  v1.EventTypeScrapedProof,
-				StreamContractAddress: streamContractAddress,
-				ChunkNum:              chunkID.Uint64(),
-			})
-			if err != nil {
-				logger.WithError(err).Error("failed to emit scrap proof event")
-				return
-			}
-		}()
+		err = s.eb.EmitEvent(otCtx, &v1.Event{
+			Type:                  v1.EventTypeScrapedProof,
+			StreamContractAddress: streamContractAddress,
+			ChunkNum:              chunkID.Uint64(),
+		})
+		if err != nil {
+			logger.WithError(err).Error("failed to emit scrap proof event")
+			return resp, nil
+		}
+	}
+
+	logger.Info("validate proof")
+
+	validateProofReq := &emitterv1.ValidateProofRequest{
+		StreamContractAddress: streamContractAddress,
+		ProfileId:             profileID.Bytes(),
+		ChunkId:               chunkID.Bytes(),
+	}
+	validateProofResp, err := s.emitter.ValidateProof(otCtx, validateProofReq)
+	if err != nil {
+		logger.WithError(err).Error("failed to emitter.ValidateProof")
+		if validateProofResp != nil {
+			resp.ValidateProofTx = validateProofResp.Tx
+			resp.ValidateProofTxStatus = validateProofResp.Status
+		}
+		return resp, err
+	}
+
+	logger.Debugf("validate proof tx %s", validateProofResp.Tx)
+
+	resp.ValidateProofTx = validateProofResp.Tx
+	resp.ValidateProofTxStatus = validateProofResp.Status
+
+	err = s.eb.EmitEvent(otCtx, &v1.Event{
+		Type:                  v1.EventTypeValidatedProof,
+		StreamContractAddress: streamContractAddress,
+		ChunkNum:              chunkID.Uint64(),
+	})
+	if err != nil {
+		logger.WithError(err).Error("failed to emit validated proof event")
+		return resp, nil
 	}
 
 	return resp, nil
