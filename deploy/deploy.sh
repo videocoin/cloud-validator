@@ -50,6 +50,7 @@ function has_helm {
 function get_vars() {
     log_info "Getting variables..."
     readonly KUBE_CONTEXT=`consul kv get -http-addr=${CONSUL_ADDR} config/${ENV}/common/kube_context`
+    readonly REPLICAS_COUNT=`consul kv get -http-addr=${CONSUL_ADDR} config/${ENV}/services/${CHART_NAME}/vars/replicasCount`
     readonly STREAM_MANAGER_CONTRACT_ADDR=`consul kv get -http-addr=${CONSUL_ADDR} config/${ENV}/services/${CHART_NAME}/vars/streamManagerContractAddr`
     readonly BASE_INPUT_URL=`consul kv get -http-addr=${CONSUL_ADDR} config/${ENV}/services/${CHART_NAME}/vars/baseInputUrl`
     readonly BASE_OUTPUT_URL=`consul kv get -http-addr=${CONSUL_ADDR} config/${ENV}/services/${CHART_NAME}/vars/baseOutputUrl`
@@ -66,6 +67,7 @@ function deploy() {
         --install \
         --set image.repository="gcr.io/${GCP_PROJECT}/${CHART_NAME}" \
         --set image.tag="${VERSION}" \
+        --set replicasCount="${REPLICAS_COUNT}" \
         --set config.streamManagerContractAddr="${STREAM_MANAGER_CONTRACT_ADDR}" \
         --set config.baseInputUrl="${BASE_INPUT_URL}" \
         --set config.baseOutputUrl="${BASE_OUTPUT_URL}" \
