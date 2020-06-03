@@ -197,14 +197,14 @@ func (s *RPCServer) validateProof(inputChunkURL, outputChunkURL string) (bool, e
 	}
 
 	inFrames, err := getFrames(inputChunkURL)
-	if err != nil || inFrames == 0 {
+	if err != nil {
 		return false, fmt.Errorf("failed to get input chunk frames: %s", err)
 	}
 
 	logger.Debugf("original frames is %d", inFrames)
 
 	outFrames, err := getFrames(outputChunkURL)
-	if err != nil || outFrames == 0 {
+	if err != nil {
 		return false, fmt.Errorf("failed to get output chunk frames: %s", err)
 	}
 

@@ -68,6 +68,10 @@ func getFrames(filepath string) (int, error) {
 		return 0, errors.New("unable to get duration")
 	}
 
+	if duration > 0 && duration <= 1 {
+		return 0, nil
+	}
+
 	nbFrames = int(duration * float64(fr))
 
 	return nbFrames, nil
