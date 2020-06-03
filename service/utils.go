@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,20 +21,63 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func getDuration(filepath string) (float64, error) {
+func getFrames(filepath string) (int, error) {
 	data, err := ffprobe.GetProbeData(filepath, 5000*time.Millisecond)
 	if err != nil {
 		return 0, err
 	}
 
-	return data.Format.DurationSeconds, nil
+	stream := data.GetFirstVideoStream()
+	if stream == nil {
+		return 0, errors.New("no video stream")
+	}
+
+	nbFrames := 0
+
+	frs := stream.RFrameRate
+	if frs == "" {
+		frs = stream.AvgFrameRate
+	}
+
+	frsParts := strings.Split(frs, "/")
+	if len(frsParts) != 2 {
+		return 0, errors.New("unable to calc framerate")
+	}
+
+	fr1, err := strconv.Atoi(frsParts[0])
+	if err != nil {
+		return 0, errors.New("unable to calc framerate")
+	}
+
+	fr2, err := strconv.Atoi(frsParts[1])
+	if err != nil {
+		return 0, errors.New("unable to calc framerate")
+	}
+
+	fr := fr1 / fr2
+
+	duration := data.Format.DurationSeconds
+	if duration == 0 {
+		duration, err = strconv.ParseFloat(stream.Duration, 64)
+		if err != nil {
+			return 0, errors.New("unable to get duration")
+		}
+	}
+
+	if duration == 0 {
+		return 0, errors.New("unable to get duration")
+	}
+
+	nbFrames = int(duration * float64(fr))
+
+	return nbFrames, nil
 }
 
-func extractFrame(filepath string, atTime float64) (string, error) {
+func extractFrame(filepath string, frame int) (string, error) {
 	// http://trac.ffmpeg.org/wiki/Seeking
 	// http://ffmpeg.org/ffmpeg-utils.html#time-duration-syntax
 	output := fmt.Sprintf("%s.png", uuid.New().String())
-	args := []string{"-i", filepath, "-ss", fmt.Sprintf("%f", atTime), "-vf", "scale=360:-2", "-frames:v", "1", output}
+	args := []string{"-i", filepath, "-vf", fmt.Sprintf(`scale=360:-2,select=eq(n\,%d)`, frame), "-frames:v", "1", output}
 	cmd := exec.Command("ffmpeg", args...)
 	_, err := cmd.CombinedOutput()
 	if err != nil {

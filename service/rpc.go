@@ -196,24 +196,24 @@ func (s *RPCServer) validateProof(inputChunkURL, outputChunkURL string) (bool, e
 		return false, err
 	}
 
-	inDuration, err := getDuration(inputChunkURL)
-	if err != nil || inDuration == 0 {
-		return false, fmt.Errorf("failed to get input chunk duration: %s", err)
+	inFrames, err := getFrames(inputChunkURL)
+	if err != nil || inFrames == 0 {
+		return false, fmt.Errorf("failed to get input chunk frames: %s", err)
 	}
 
-	logger.Debugf("original duration is %f", inDuration)
+	logger.Debugf("original frames is %d", inFrames)
 
-	outDuration, err := getDuration(outputChunkURL)
-	if err != nil || outDuration == 0 {
-		return false, fmt.Errorf("failed to get output chunk duration: %s", err)
+	outFrames, err := getFrames(outputChunkURL)
+	if err != nil || outFrames == 0 {
+		return false, fmt.Errorf("failed to get output chunk frames: %s", err)
 	}
 
-	logger.Debugf("transcoded duration is %f", outDuration)
+	logger.Debugf("transcoded duration is %d", outFrames)
 
-	duration := math.Min(inDuration, outDuration)
-	seekTo := float64(int64(duration) / 2)
+	mf := int(math.Min(float64(inFrames), float64(outFrames)))
+	seekTo := mf / 2
 
-	logger.Debugf("duration is %f, extracting at time %f", duration, seekTo)
+	logger.Debugf("frames is %d, extracting at frame %d", mf, seekTo)
 
 	inFrame, err := extractFrame(inputChunkURL, seekTo)
 	if err != nil {
