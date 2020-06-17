@@ -1,23 +1,48 @@
-replicasCount: 3
+replicasCount: 1
 maxUnavailableCount: 0
 
 image:
-  repository: gcr.io/videocoin-network/validator
+  repository: registry.videocoin.net/cloud/validator
   tag: latest
   pullPolicy: Always
+  pullSecrets: 
+  - name: regcred
 
-config: {}
+serviceAccount:
+  name: default
+
+config:
+  THRESHOLD: "10"
+  EMITTER_RPC_ADDR: "emitter.console.svc.cluster.local:5003"
 
 service:
-  type: ClusterIP
-  externalRpcPort: 5020
-  internalRpcPort: 5020
+  ports:
+    grpc: 5020
 
 autoscaler:
   minCount: 1
-  maxCount: 10
+  maxCount: 5
   targets:
     targetCPUUtilizationPercentage: 70
 
-secrets:
-  sentryDsn: ""
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1024Mi
+  requests:
+    cpu: 1000m
+    memory: 1024Mi
+
+annotations:
+  vault.hashicorp.com/agent-inject: "true"
+  vault.hashicorp.com/role: "console-validator"
+  vault.hashicorp.com/agent-inject-secret-common: "videocoin/v1/networks/everest-dev/console/common"
+  vault.hashicorp.com/agent-inject-secret-config: "videocoin/v1/networks/everest-dev/console/validator"
+  vault.hashicorp.com/agent-inject-template-common: |
+    {{ with secret "videocoin/v1/networks/everest-dev/console/common" }}{{ range $k, $v := .Data }}
+    export {{ $k }}="{{ $v }}"
+    {{ end }}{{ end }}
+  vault.hashicorp.com/agent-inject-template-config: |
+    {{ with secret "videocoin/v1/networks/everest-dev/console/validator" }}{{ range $k, $v := .Data }}
+    export {{ $k }}="{{ $v }}"
+    {{ end }}{{ end }}
