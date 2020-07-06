@@ -12,7 +12,7 @@ type Config struct {
 	Version string        `envconfig:"-"`
 	Logger  *logrus.Entry `envconfig:"-"`
 
-	RPCAddr        string `envconfig:"RPC_ADDR" default:"127.0.0.1:5020"`
+	RPCAddr        string `envconfig:"RPC_ADDR" default:"0.0.0.0:5020"`
 	Threshold      int    `envconfig:"THRESHOLD" default:"10"`
 	BaseInputURL   string `envconfig:"BASE_INPUT_URL" required:"true"`
 	BaseOutputURL  string `envconfig:"BASE_OUTPUT_URL" required:"true"`
