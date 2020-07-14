@@ -93,7 +93,16 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 	streamContractAddress := req.StreamContractAddress
 
 	inputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseInputURL, streamID, chunkID.Int64()-1)
+	inputMKVChunkURL := fmt.Sprintf("%s/%s/%d.mkv", s.baseInputURL, streamID, chunkID.Int64()-1)
 	outputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseOutputURL, streamID, chunkID.Int64())
+
+	errTs := checkSource(inputChunkURL)
+	if errTs != nil {
+		errMkv := checkSource(inputMKVChunkURL)
+		if errMkv == nil {
+			inputChunkURL = inputMKVChunkURL
+		}
+	}
 
 	logger := s.logger.WithFields(
 		logrus.Fields{
