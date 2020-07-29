@@ -4,7 +4,7 @@ maxUnavailableCount: 0
 image:
   repository: registry.videocoin.net/cloud/validator
   tag: latest
-  pullPolicy: Always
+  pullPolicy: IfNotPresent
   pullSecrets: 
   - name: regcred
 
@@ -30,8 +30,8 @@ resources:
     cpu: 1000m
     memory: 1024Mi
   requests:
-    cpu: 1000m
-    memory: 1024Mi
+    cpu: 50m
+    memory: 32Mi
 
 annotations:
   vault.hashicorp.com/agent-inject: "true"
