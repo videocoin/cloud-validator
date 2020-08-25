@@ -22,7 +22,7 @@ func init() {
 }
 
 func getFrames(filepath string) (int, error) {
-	data, err := ffprobe.GetProbeData(filepath, 5000*time.Millisecond)
+	data, err := ffprobe.GetProbeData(filepath, 10*time.Second)
 	if err != nil {
 		return 0, err
 	}
