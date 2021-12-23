@@ -95,6 +95,7 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 	inputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseInputURL, streamID, chunkID.Int64()-1)
 	inputMKVChunkURL := fmt.Sprintf("%s/%s/%d.mkv", s.baseInputURL, streamID, chunkID.Int64()-1)
 	outputChunkURL := fmt.Sprintf("%s/%s/%d.ts", s.baseOutputURL, streamID, chunkID.Int64())
+	outputMP4ChunkURL := fmt.Sprintf("%s/%s/%d.mp4", s.baseOutputURL, streamID, chunkID.Int64())
 
 	errTs := checkSource(inputChunkURL)
 	if errTs != nil {
@@ -102,6 +103,11 @@ func (s *RPCServer) ValidateProof(ctx context.Context, req *v1.ValidateProofRequ
 		if errMkv == nil {
 			inputChunkURL = inputMKVChunkURL
 		}
+	}
+
+	errOutMP4 := checkSource(outputMP4ChunkURL)
+	if errOutMP4 == nil {
+		outputChunkURL = outputMP4ChunkURL
 	}
 
 	logger := s.logger.WithFields(
@@ -197,7 +203,7 @@ func (s *RPCServer) validateProof(inputChunkURL, outputChunkURL string) (bool, e
 			"transcoded": outputChunkURL,
 		})
 
-	err := retry.RetryWithAttempts(10, time.Second*5, func() error {
+	err := retry.RetryWithAttempts(5, time.Second*5, func() error {
 		logger.Infof("checking output chunk url %s", outputChunkURL)
 		return checkSource(outputChunkURL)
 	})
